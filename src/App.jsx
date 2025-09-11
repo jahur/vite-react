@@ -1,11 +1,7 @@
 import UploadForm from "./UploadForm";
 
 function App() {
-  return (
-    <div>
-      <UploadForm />
-    </div>
-  );
+  return <UploadForm />;
 }
 
 export default App;
