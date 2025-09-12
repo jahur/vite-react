@@ -1,6 +1,6 @@
 import React from 'react';
 import UploadForm from './UploadForm';
-import './styles.css';
+import './index.css';
 
 export default function App() {
   return (
