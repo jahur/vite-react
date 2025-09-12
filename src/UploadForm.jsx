@@ -1,85 +1,54 @@
-import { useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+import React, { useState } from 'react';
+import { API_URL } from './config';
 
 export default function UploadForm() {
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
-  const [downloadLink, setDownloadLink] = useState("");
+  const [downloadURL, setDownloadURL] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) {
-      setStatus("Please select a zip file.");
-      return;
-    }
-    setStatus("Uploading… converting…");
-
+    if (!file) return;
+    setLoading(true);
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
 
-    try {
-      const res = await fetch(`${API_BASE}/convert/`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.download_url) {
-        const link =
-          data.download_url.startsWith("http")
-            ? data.download_url
-            : `${API_BASE}${data.download_url}`;
-        setDownloadLink(link);
-        setStatus("✅ Conversion complete!");
-      } else {
-        setStatus("Error: " + JSON.stringify(data));
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus("Something went wrong.");
-    }
+    const res = await fetch(`${API_URL}/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    setDownloadURL(`${API_URL}${data.download_url}`);
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-blue-50">
-      <div className="bg-white shadow-xl rounded-2xl p-8 max-w-md w-full">
-        <h1 className="text-2xl font-bold text-center text-indigo-700 mb-6">
-          HTML → WordPress Theme Converter
-        </h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="file"
-            accept=".zip"
-            onChange={(e) => setFile(e.target.files[0])}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
-             file:rounded-full file:border-0
-             file:text-sm file:font-semibold
-             file:bg-indigo-50 file:text-indigo-700
-             hover:file:bg-indigo-100"
-          />
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            Convert Now
-          </button>
-        </form>
-        {status && (
-          <p className="text-center text-gray-600 mt-4">{status}</p>
-        )}
-        {downloadLink && (
-          <div className="mt-6 text-center">
-            <a
-              href={downloadLink}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            >
-              Download Theme
-            </a>
-          </div>
-        )}
-      </div>
+    <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md mx-auto">
+      <h1 className="text-2xl font-bold text-center mb-6">HTML → WordPress Theme Converter</h1>
+      <form onSubmit={handleUpload} className="flex flex-col gap-4">
+        <input
+          type="file"
+          accept=".zip"
+          onChange={(e) => setFile(e.target.files[0])}
+          className="border p-2 rounded"
+        />
+        <button
+          type="submit"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          {loading ? 'Converting…' : 'Convert Now'}
+        </button>
+      </form>
+      {downloadURL && (
+        <a
+          href={downloadURL}
+          className="block mt-4 text-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          download
+        >
+          Download Theme
+        </a>
+      )}
     </div>
   );
 }
