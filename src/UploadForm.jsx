@@ -5,6 +5,8 @@ export default function UploadForm() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const [downloadURL, setDownloadURL] = useState(null);
+  const [downloadName, setDownloadName] = useState('');
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -12,12 +14,12 @@ export default function UploadForm() {
 
     setLoading(true);
     setStatus('Uploading and converting…');
+    setDownloadURL(null);
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      // Upload and convert in one request
       const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
@@ -29,17 +31,11 @@ export default function UploadForm() {
 
       // Receive the zip file as blob
       const blob = await res.blob();
-      const downloadURL = window.URL.createObjectURL(blob);
+      const blobURL = window.URL.createObjectURL(blob);
 
-      // Automatically trigger download
-      const link = document.createElement('a');
-      link.href = downloadURL;
-      link.download = file.name.replace('.zip', '_theme.zip');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setStatus('Conversion complete! WordPress theme downloaded.');
+      setDownloadURL(blobURL);
+      setDownloadName(file.name.replace('.zip', '_theme.zip'));
+      setStatus('Conversion complete! Click below to download.');
     } catch (err) {
       console.error(err);
       setStatus('Error during upload/convert. Check console.');
@@ -68,6 +64,16 @@ export default function UploadForm() {
       </form>
 
       {status && <p className="mt-4 text-center text-gray-700">{status}</p>}
+
+      {downloadURL && (
+        <a
+          href={downloadURL}
+          download={downloadName}
+          className="block mt-4 text-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Download WordPress Theme
+        </a>
+      )}
     </div>
   );
 }
