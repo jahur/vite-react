@@ -5,66 +5,55 @@ export default function UploadForm() {
   const [file, setFile] = useState(null);
   const [downloadURL, setDownloadURL] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [sections, setSections] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
+  const [status, setStatus] = useState('');
 
-  // Handle ZIP upload
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return;
 
     setLoading(true);
-    setDownloadURL(null);
-    setSections(null);
+    setStatus('Uploading zip…');
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      // POST to backend /upload
-      const res = await fetch(`${API_URL}/upload`, {
+      // 1️⃣ Upload HTML zip
+      const resUpload = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
+      const dataUpload = await resUpload.json();
 
-      if (!res.ok) {
-        throw new Error('Upload failed');
+      if (!dataUpload.session_id) {
+        throw new Error('No session_id returned from upload');
+      }
+      const sessionId = dataUpload.session_id;
+
+      // 2️⃣ Convert to WordPress theme
+      setStatus('Converting to WordPress theme…');
+      const resConvert = await fetch(`${API_URL}/convert/${sessionId}`);
+      const dataConvert = await resConvert.json();
+
+      if (!dataConvert.download_url) {
+        throw new Error('No download_url returned from convert');
       }
 
-      const data = await res.json();
-      // Save session ID for later parse call
-      setSessionId(data.session_id);
-      // Save download URL
-      setDownloadURL(`${API_URL}${data.download_url}`);
+      // 3️⃣ Build final download URL
+      const themeDownloadURL = `${API_URL}${dataConvert.download_url}`;
+      setDownloadURL(themeDownloadURL);
+      setStatus('Conversion complete!');
     } catch (err) {
-      console.error('Upload error:', err);
-    } finally {
-      setLoading(false);
+      console.error(err);
+      setStatus('Error during upload/convert.');
     }
-  };
 
-  // Handle parse call
-  const handleParse = async () => {
-    if (!sessionId) return;
-    try {
-      const res = await fetch(`${API_URL}/parse/${sessionId}`);
-      if (!res.ok) {
-        throw new Error('Parse failed');
-      }
-      const data = await res.json();
-      setSections(data.sections);
-    } catch (err) {
-      console.error('Parse error:', err);
-    }
+    setLoading(false);
   };
 
   return (
     <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-center mb-6">
-        HTML → WordPress Theme Converter
-      </h1>
-
-      {/* Upload Form */}
+      <h1 className="text-2xl font-bold text-center mb-6">HTML → WordPress Theme Converter</h1>
       <form onSubmit={handleUpload} className="flex flex-col gap-4">
         <input
           type="file"
@@ -75,40 +64,22 @@ export default function UploadForm() {
         <button
           type="submit"
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          disabled={loading}
         >
-          {loading ? 'Uploading…' : 'Upload ZIP'}
+          {loading ? 'Processing…' : 'Convert Now'}
         </button>
       </form>
 
-      {/* Download Link */}
+      {status && <p className="mt-4 text-center text-gray-700">{status}</p>}
+
       {downloadURL && (
         <a
           href={downloadURL}
           className="block mt-4 text-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
           download
         >
-          Download Dummy Theme
+          Download WordPress Theme
         </a>
-      )}
-
-      {/* Parse Button */}
-      {sessionId && (
-        <button
-          onClick={handleParse}
-          className="mt-4 w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
-        >
-          Parse index.html Sections
-        </button>
-      )}
-
-      {/* Display Parsed Sections */}
-      {sections && (
-        <div className="mt-4 bg-gray-50 border p-4 rounded max-h-80 overflow-auto text-xs">
-          <h2 className="font-semibold mb-2">Parsed Sections:</h2>
-          <pre className="whitespace-pre-wrap break-words">
-            {JSON.stringify(sections, null, 2)}
-          </pre>
-        </div>
       )}
     </div>
   );
