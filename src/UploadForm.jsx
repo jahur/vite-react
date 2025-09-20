@@ -3,7 +3,6 @@ import { API_URL } from './config';
 
 export default function UploadForm() {
   const [file, setFile] = useState(null);
-  const [downloadURL, setDownloadURL] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
 
@@ -12,43 +11,41 @@ export default function UploadForm() {
     if (!file) return;
 
     setLoading(true);
-    setStatus('Uploading zip…');
+    setStatus('Uploading and converting…');
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      // 1️⃣ Upload HTML zip
-      const resUpload = await fetch(`${API_URL}/upload`, {
+      // Upload and convert in one request
+      const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
-      const dataUpload = await resUpload.json();
 
-      if (!dataUpload.session_id) {
-        throw new Error('No session_id returned from upload');
-      }
-      const sessionId = dataUpload.session_id;
-
-      // 2️⃣ Convert to WordPress theme
-      setStatus('Converting to WordPress theme…');
-      const resConvert = await fetch(`${API_URL}/convert/${sessionId}`);
-      const dataConvert = await resConvert.json();
-
-      if (!dataConvert.download_url) {
-        throw new Error('No download_url returned from convert');
+      if (!res.ok) {
+        throw new Error('Upload/conversion failed');
       }
 
-      // 3️⃣ Build final download URL
-      const themeDownloadURL = `${API_URL}${dataConvert.download_url}`;
-      setDownloadURL(themeDownloadURL);
-      setStatus('Conversion complete!');
+      // Receive the zip file as blob
+      const blob = await res.blob();
+      const downloadURL = window.URL.createObjectURL(blob);
+
+      // Automatically trigger download
+      const link = document.createElement('a');
+      link.href = downloadURL;
+      link.download = file.name.replace('.zip', '_theme.zip');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setStatus('Conversion complete! WordPress theme downloaded.');
     } catch (err) {
       console.error(err);
-      setStatus('Error during upload/convert.');
+      setStatus('Error during upload/convert. Check console.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -71,16 +68,6 @@ export default function UploadForm() {
       </form>
 
       {status && <p className="mt-4 text-center text-gray-700">{status}</p>}
-
-      {downloadURL && (
-        <a
-          href={downloadURL}
-          className="block mt-4 text-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-          download
-        >
-          Download WordPress Theme
-        </a>
-      )}
     </div>
   );
 }
